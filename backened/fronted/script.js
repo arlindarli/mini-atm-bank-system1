@@ -1,6 +1,6 @@
 /* ============ STATE ============ */
 const state = {
-  apiBase: 'http://localhost:3000',
+  apiBase: window.location.origin,
   token: null,
   user: null,
   account: null,
