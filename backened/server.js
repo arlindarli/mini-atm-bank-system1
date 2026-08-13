@@ -777,7 +777,7 @@ const frontendPath = path.join(__dirname, "fronted");
 
 app.use(express.static(frontendPath));
 
-app.get("*", (req, res, next) => {
+app.get("/{*splat}", (req, res, next) => {
   if (
     req.path.startsWith("/register") ||
     req.path.startsWith("/login") ||
