@@ -1,37 +1,56 @@
-const Database = require("better-sqlite3");
+const { Pool } = require("pg");
 
-const db = new Database("atm.db");
+const connectionString =
+  process.env.DATABASE_URL ||
+  process.env.STORAGE_URL;
 
-db.pragma("journal_mode = WAL");
+const db = new Pool({
+  connectionString,
+  ssl: {
+    rejectUnauthorized: false
+  }
+});
 
-db.exec(`
-  CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    full_name TEXT NOT NULL,
-    email TEXT UNIQUE NOT NULL,
-    password_hash TEXT NOT NULL,
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP
-  );
+async function initDatabase() {
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS users (
+      id SERIAL PRIMARY KEY,
+      full_name TEXT NOT NULL,
+      email TEXT UNIQUE NOT NULL,
+      password_hash TEXT NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
 
-  CREATE TABLE IF NOT EXISTS accounts (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    account_number TEXT UNIQUE NOT NULL,
-    pin_hash TEXT NOT NULL,
-    balance REAL NOT NULL DEFAULT 0,
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id)
-  );
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS accounts (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id),
+      account_number TEXT UNIQUE NOT NULL,
+      pin_hash TEXT NOT NULL,
+      balance NUMERIC(12,2) NOT NULL DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
 
-  CREATE TABLE IF NOT EXISTS transactions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    account_id INTEGER NOT NULL,
-    type TEXT NOT NULL,
-    amount REAL NOT NULL,
-    balance_after REAL NOT NULL,
-    timestamp TEXT DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (account_id) REFERENCES accounts(id)
-  );
-`);
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS transactions (
+      id SERIAL PRIMARY KEY,
+      account_id INTEGER NOT NULL REFERENCES accounts(id),
+      type TEXT NOT NULL,
+      amount NUMERIC(12,2) NOT NULL,
+      balance_after NUMERIC(12,2) NOT NULL,
+      timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+}
+
+initDatabase()
+  .then(() => {
+    console.log("PostgreSQL database initialized");
+  })
+  .catch((error) => {
+    console.error("Database initialization error:", error);
+  });
 
 module.exports = db;
